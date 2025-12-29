@@ -1,14 +1,10 @@
 import React from 'react';
 import Column from './Column';
-import { COLUMNS } from '../types.ts';
-import { useGameStore } from '../store.ts';
+import { COLUMNS } from '../types';
+import { useGameStore } from '../store/useGameStore';
 
 const KanbanBoard = () => {
   const tasks = useGameStore(state => state.tasks);
-  
-  // Логирование для отладки
-  console.log('KanbanBoard render - tasks count:', tasks.length);
-  console.log('Tasks in backlog:', tasks.filter(t => t.columnId === 'backlog').length);
   
   // Отдельно показываем Expedite lane
   const expediteTasks = tasks.filter(t => t.columnId === 'expedite');

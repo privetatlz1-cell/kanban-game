@@ -1,5 +1,5 @@
 import React from 'react';
-import { IEvent, EVENTS } from '../types.ts';
+import { IEvent, EVENTS } from '../types';
 
 interface EventsPanelProps {
   events: IEvent[];

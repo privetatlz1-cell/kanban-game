@@ -1,18 +1,13 @@
 import React from 'react';
 import TaskCard from './TaskCard';
-import { COLUMNS } from '../types.ts';
-import { useGameStore } from '../store.ts';
+import { COLUMNS } from '../types';
+import { useGameStore } from '../store/useGameStore';
 
 const Column = ({ columnId, tasks }: { columnId: string; tasks: any[] }) => {
   const column = COLUMNS.find(c => c.id === columnId);
   if (!column) return null;
   
   const moveTask = useGameStore(state => state.moveTask);
-  
-  // Логирование для отладки
-  if (columnId === 'backlog') {
-    console.log('Backlog column - tasks:', tasks.length, tasks.map(t => ({ id: t.id, title: t.title, columnId: t.columnId })));
-  }
   
   // Разделяем задачи по подколонкам
   const readyTasks = tasks.filter(t => t.subColumn === 'Ready');

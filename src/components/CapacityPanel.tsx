@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatNumber } from '../types.ts';
+import { formatNumber } from '../types';
 
 interface CapacityPanelProps {
   capacity: {

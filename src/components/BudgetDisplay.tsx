@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency } from '../types.ts';
+import { formatCurrency } from '../types';
 
 interface BudgetDisplayProps {
   money: number;

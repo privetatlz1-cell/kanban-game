@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useGameStore } from './store.ts';
+import { useGameStore } from './store';
 import KanbanBoard from './components/KanbanBoard';
-import CapacityPanel from './components/CapacityPanel.tsx';
-import EventsPanel from './components/EventsPanel.tsx';
+import CapacityPanel from './components/CapacityPanel';
+import EventsPanel from './components/EventsPanel';
 import BudgetDisplay from './components/BudgetDisplay';
 import GameControls from './components/GameControls';
 import MetricsCharts from './components/MetricsCharts';
 import Logo from './components/Logo';
-import { formatCurrency } from './types.ts';
+import { formatCurrency } from './types';
 
 const KanbanGame = () => {
   const {
@@ -35,7 +35,6 @@ const KanbanGame = () => {
       // Если нет задач или бюджет равен 0, инициализируем игру
       if ((!state.tasks || state.tasks.length === 0 || state.money === 0) && 
           !state.gameOver && !state.gameWon) {
-        console.log('Auto-initializing game...');
         newGame();
       }
     }, 300);
@@ -54,7 +53,6 @@ const KanbanGame = () => {
   };
   
   const handleNewGame = () => {
-    console.log('New game button clicked');
     newGame();
   };
   

@@ -1,6 +1,6 @@
 import React from 'react';
-import { ITask, TASK_ARCHETYPES, formatCurrency } from '../types.ts';
-import { useGameStore } from '../store.ts';
+import { ITask, TASK_ARCHETYPES, formatCurrency } from '../types';
+import { useGameStore } from '../store/useGameStore';
 
 const TaskCard = ({ task }: { task: ITask }) => {
   const spendCapacity = useGameStore(state => state.spendCapacity);
