@@ -1,4 +1,5 @@
 // Zustand store для Professional Construction Kanban Engine
+// Полностью переписанная версия с правильной логикой
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
@@ -29,10 +30,10 @@ const rollDice = (): number => Math.floor(Math.random() * 6) + 1;
 // Генерация capacity для дня
 const generateDailyCapacity = () => {
   return {
-    rd: rollDice() * 3, // Пример: 3-18
-    geo: rollDice() * 2, // Пример: 2-12
-    smr: rollDice() * 3, // Пример: 3-18
-    lab: rollDice() * 2, // Пример: 2-12
+    rd: rollDice() * 3, // 3-18
+    geo: rollDice() * 2, // 2-12
+    smr: rollDice() * 3, // 3-18
+    lab: rollDice() * 2, // 2-12
     hse: 2, // Всегда 2
   };
 };
@@ -107,29 +108,16 @@ const generateRandomEvent = (tasks: ITask[]): IEvent | null => {
   };
 };
 
-interface GameStore extends IGameState {
-  // Actions
-  nextDay: () => void;
-  spendCapacity: (taskId: string, capacityType: 'rd' | 'geo' | 'smr' | 'lab' | 'hse', amount: number) => boolean;
-  moveTask: (taskId: string, newColumnId: string, newSubColumn?: 'Doing' | 'Ready') => void;
-  autoDistributeCapacity: () => void;
-  unblockTask: (taskId: string, capacityType: 'rd' | 'hse', amount: number) => boolean;
-  convertCapacity: (from: 'rd', to: 'lab', amount: number) => boolean; // 2 RD = 1 Lab
-  newGame: () => void;
-  startGame: () => void; // Алиас для newGame
-  clearHistory: () => void;
-  totalRevenue: number; // Cumulative revenue
-  totalCosts: number; // Cumulative costs
-}
-
 // Функция для создания начального состояния
-const createInitialState = () => {
+const createInitialState = (): IGameState & { totalRevenue: number; totalCosts: number } => {
   const initialTasks = generateInitialTasks();
+  const initialCapacity = generateDailyCapacity();
+  
   return {
     tasks: initialTasks,
     day: 0,
     money: INITIAL_MONEY,
-    capacity: generateDailyCapacity(),
+    capacity: initialCapacity,
     history: [
       {
         day: 0,
@@ -151,10 +139,25 @@ const createInitialState = () => {
   };
 };
 
+interface GameStore extends IGameState {
+  // Actions
+  nextDay: () => void;
+  spendCapacity: (taskId: string, capacityType: 'rd' | 'geo' | 'smr' | 'lab' | 'hse', amount: number) => boolean;
+  moveTask: (taskId: string, newColumnId: string, newSubColumn?: 'Doing' | 'Ready') => void;
+  autoDistributeCapacity: () => void;
+  unblockTask: (taskId: string, capacityType: 'rd' | 'hse', amount: number) => boolean;
+  convertCapacity: (from: 'rd', to: 'lab', amount: number) => boolean;
+  newGame: () => void;
+  startGame: () => void;
+  clearHistory: () => void;
+  totalRevenue: number;
+  totalCosts: number;
+}
+
 export const useGameStore = create<GameStore>()(
   persist(
     (set, get) => {
-      // Создаем начальное состояние
+      // Начальное состояние
       const initialState = createInitialState();
       
       return {
@@ -230,7 +233,6 @@ export const useGameStore = create<GameStore>()(
             if (task.status === 'curing' && task.curingDays !== undefined) {
               const newCuringDays = task.curingDays - 1;
               if (newCuringDays <= 0) {
-                // Curing завершен, можно переходить в Lab
                 return { 
                   ...task, 
                   curingDays: 0, 
@@ -244,53 +246,39 @@ export const useGameStore = create<GameStore>()(
             return task;
           });
           
-          // Перемещаем задачи из backlog в RD Ready (если нет зависимостей или зависимости выполнены)
-          // Только для задач без зависимостей или с выполненными зависимостями
+          // Перемещаем задачи из backlog в RD Ready (если нет зависимостей)
           tasks = tasks.map(task => {
             if (task.columnId === 'backlog' && checkDependency(task, tasks)) {
-              // Перемещаем в первую колонку (RD) в состояние Ready
               return { ...task, columnId: 'rd', subColumn: 'Ready' as const };
             }
             return task;
           });
           
-          // Автоматически перемещаем задачи из Ready в Doing, если есть capacity
+          // Автоматически перемещаем задачи из Ready в Doing, если есть capacity и место в WIP
           tasks = tasks.map(task => {
-            if (task.subColumn === 'Ready' && task.columnId !== 'backlog' && task.columnId !== 'acceptance' && task.columnId !== 'done' && task.columnId !== 'expedite') {
-              // Проверяем WIP limit
+            if (task.subColumn === 'Ready' && 
+                task.columnId !== 'backlog' && 
+                task.columnId !== 'acceptance' && 
+                task.columnId !== 'done' && 
+                task.columnId !== 'expedite' &&
+                !task.isBlocked &&
+                task.status !== 'curing') {
               const column = COLUMNS.find(c => c.id === task.columnId);
               if (column && column.wipLimit !== null) {
                 const doingTasks = tasks.filter(
                   t => t.columnId === task.columnId && t.subColumn === 'Doing'
                 ).length;
                 if (doingTasks < column.wipLimit) {
-                  return { ...task, subColumn: 'Doing' };
+                  return { ...task, subColumn: 'Doing' as const };
                 }
               }
             }
             return task;
           });
           
-          // Обрабатываем задачи в curing - если curing завершен, переходим в Lab
-          tasks = tasks.map(task => {
-            if (task.status === 'curing' && task.curingDays !== undefined && task.curingDays <= 0) {
-              // Curing завершен, переходим в Lab
-              return {
-                ...task,
-                columnId: 'lab',
-                subColumn: 'Ready' as const,
-                status: 'normal',
-                curingDays: undefined,
-              };
-            }
-            return task;
-          });
-          
           // Проверяем завершенные сегменты и перемещаем задачи
           tasks = tasks.map(task => {
-            // Пропускаем задачи в curing (они обрабатываются выше)
             if (task.status === 'curing') return task;
-            
             if (task.subColumn !== 'Doing') return task;
             
             const column = task.columnId;
@@ -298,27 +286,25 @@ export const useGameStore = create<GameStore>()(
             
             // Если текущий сегмент завершен
             if (task.progress[progressKey] <= 0) {
-              // Определяем следующий столбец
               const columnOrder = ['rd', 'geo', 'smr', 'lab', 'acceptance', 'done'];
               const currentIndex = columnOrder.indexOf(column);
               
               if (currentIndex < columnOrder.length - 1) {
                 const nextColumn = columnOrder[currentIndex + 1];
                 
-                // Если завершен SMR для bridge_pier, переходим в curing (остаемся в SMR)
+                // Если завершен SMR для bridge_pier, переходим в curing
                 if (column === 'smr' && task.type === 'bridge_pier') {
                   return {
                     ...task,
-                    columnId: 'smr', // Остаемся в SMR
+                    columnId: 'smr',
                     status: 'curing',
                     curingDays: CURING_DAYS,
-                    subColumn: 'Ready',
+                    subColumn: 'Ready' as const,
                   };
                 }
                 
                 // Проверяем зависимости перед переходом
                 if (nextColumn === 'acceptance' || checkDependency(task, tasks)) {
-                  // Переходим в следующую колонку
                   let newTask = {
                     ...task,
                     columnId: nextColumn,
@@ -402,6 +388,7 @@ export const useGameStore = create<GameStore>()(
           if (expectedColumn && task.columnId !== expectedColumn) return false;
           if (task.subColumn !== 'Doing') return false;
           if (task.isBlocked) return false;
+          if (task.status === 'curing') return false;
           
           // Списываем capacity
           const newCapacity = { ...capacity, [capacityType]: capacity[capacityType] - amount };
@@ -471,7 +458,7 @@ export const useGameStore = create<GameStore>()(
           // Сортируем задачи справа налево (ближе к Done = выше приоритет)
           const columnOrder = ['rd', 'geo', 'smr', 'lab'];
           const doingTasks = tasks
-            .filter(t => t.subColumn === 'Doing' && !t.isBlocked && columnOrder.includes(t.columnId))
+            .filter(t => t.subColumn === 'Doing' && !t.isBlocked && columnOrder.includes(t.columnId) && t.status !== 'curing')
             .sort((a, b) => {
               const aIndex = columnOrder.indexOf(a.columnId);
               const bIndex = columnOrder.indexOf(b.columnId);
@@ -551,66 +538,26 @@ export const useGameStore = create<GameStore>()(
         
         // New Game / Start Game
         newGame: () => {
-          try {
-            // Генерируем начальные задачи
-            const initialTasks = generateInitialTasks();
-            console.log('Generated tasks:', initialTasks.length);
-            
-            // Создаем новое состояние
-            const newState = {
-              tasks: initialTasks,
-              day: 0,
-              money: INITIAL_MONEY,
-              capacity: generateDailyCapacity(),
-              history: [
-                {
-                  day: 0,
-                  money: INITIAL_MONEY,
-                  revenue: 0,
-                  costs: 0,
-                  profit: 0,
-                  columnDistribution: COLUMNS.reduce((acc, col) => {
-                    acc[col.id] = initialTasks.filter(t => t.columnId === col.id).length;
-                    return acc;
-                  }, {} as Record<string, number>),
-                },
-              ],
-              events: [],
-              gameOver: false,
-              gameWon: false,
-              totalRevenue: 0,
-              totalCosts: 0,
-            };
-            
-            console.log('New game state:', {
-              tasks: newState.tasks.length,
-              money: newState.money,
-              backlogTasks: newState.tasks.filter(t => t.columnId === 'backlog').length
-            });
-            
-            // Очищаем localStorage перед установкой нового состояния
-            localStorage.removeItem('kanban-game-storage');
-            
-            // Используем set с полным обновлением состояния
-            set(newState);
-            
-            // Принудительно обновляем localStorage
-            setTimeout(() => {
-              try {
-                const storage = createJSONStorage(() => localStorage);
-                storage.setItem('kanban-game-storage', JSON.stringify({ state: newState, version: 0 }));
-                console.log('State saved to localStorage');
-              } catch (e) {
-                console.error('Error saving to localStorage:', e);
-              }
-            }, 100);
-          } catch (error) {
-            console.error('Error in newGame:', error);
-            alert('Ошибка при создании новой игры: ' + error.message);
-          }
+          const newState = createInitialState();
+          
+          // Очищаем localStorage
+          localStorage.removeItem('kanban-game-storage');
+          
+          // Устанавливаем новое состояние
+          set(newState);
+          
+          // Принудительно сохраняем в localStorage
+          setTimeout(() => {
+            try {
+              const storage = createJSONStorage(() => localStorage);
+              storage.setItem('kanban-game-storage', JSON.stringify({ state: newState, version: 0 }));
+            } catch (error) {
+              console.error('Error saving to localStorage:', error);
+            }
+          }, 100);
         },
         
-        // Start Game (алиас для newGame для совместимости)
+        // Start Game (алиас)
         startGame: () => {
           get().newGame();
         },
@@ -628,25 +575,17 @@ export const useGameStore = create<GameStore>()(
         if (error) {
           console.error('Error rehydrating store:', error);
           localStorage.removeItem('kanban-game-storage');
-          // Создаем начальное состояние при ошибке
-          setTimeout(() => {
-            useGameStore.setState(createInitialState());
-          }, 0);
           return;
         }
-        if (state) {
-          // Если состояние пустое или некорректное, инициализируем заново
-          if (!state.tasks || state.tasks.length === 0 || 
-              state.money === undefined || state.money === null || 
-              isNaN(state.money) || state.money === 0) {
-            const newState = createInitialState();
-            // Используем setTimeout для обновления состояния после rehydration
-            setTimeout(() => {
-              useGameStore.setState(newState);
-            }, 0);
-          }
-        } else {
-          // Если state вообще нет, создаем начальное состояние
+        
+        // Если состояние некорректное, создаем новое
+        if (!state || 
+            !state.tasks || 
+            state.tasks.length === 0 || 
+            state.money === undefined || 
+            state.money === null || 
+            isNaN(state.money) ||
+            state.money === 0) {
           const newState = createInitialState();
           setTimeout(() => {
             useGameStore.setState(newState);
@@ -656,4 +595,3 @@ export const useGameStore = create<GameStore>()(
     }
   )
 );
-

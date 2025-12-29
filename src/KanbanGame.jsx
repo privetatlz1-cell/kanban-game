@@ -11,14 +11,14 @@ import { formatCurrency } from './types.ts';
 
 const KanbanGame = () => {
   const {
-    tasks = [],
-    day = 0,
-    money = 0,
+    tasks,
+    day,
+    money,
     capacity,
-    history = [],
-    events = [],
-    gameOver = false,
-    gameWon = false,
+    history,
+    events,
+    gameOver,
+    gameWon,
     nextDay,
     autoDistributeCapacity,
     convertCapacity,
@@ -27,21 +27,20 @@ const KanbanGame = () => {
   
   const [showAutoDistribute, setShowAutoDistribute] = useState(false);
   
-  // Проверяем и инициализируем игру при монтировании, если нужно
+  // Инициализация при монтировании
   useEffect(() => {
-    // Даем время на rehydration из localStorage
-    const checkState = setTimeout(() => {
-      const currentState = useGameStore.getState();
-      // Если задач нет или бюджет равен 0, инициализируем игру
-      if ((!currentState.tasks || currentState.tasks.length === 0 || 
-           currentState.money === 0 || currentState.money === undefined) && 
-          !currentState.gameOver && !currentState.gameWon) {
-        console.log('Initializing game: tasks=', currentState.tasks?.length, 'money=', currentState.money);
-        currentState.newGame();
+    // Проверяем состояние через небольшую задержку (после rehydration)
+    const timer = setTimeout(() => {
+      const state = useGameStore.getState();
+      // Если нет задач или бюджет равен 0, инициализируем игру
+      if ((!state.tasks || state.tasks.length === 0 || state.money === 0) && 
+          !state.gameOver && !state.gameWon) {
+        console.log('Auto-initializing game...');
+        newGame();
       }
-    }, 200); // Даем время на rehydration
+    }, 300);
     
-    return () => clearTimeout(checkState);
+    return () => clearTimeout(timer);
   }, []); // Только при монтировании
   
   const handleNextDay = () => {
@@ -55,23 +54,9 @@ const KanbanGame = () => {
   };
   
   const handleNewGame = () => {
-    console.log('handleNewGame called, newGame type:', typeof newGame);
-    if (typeof newGame === 'function') {
-      try {
-        console.log('Calling newGame()...');
-        newGame();
-        console.log('newGame() called successfully');
-      } catch (error) {
-        console.error('Error in newGame:', error);
-        alert('Ошибка при создании новой игры: ' + error.message);
-      }
-    } else {
-      console.error('newGame is not a function!');
-    }
+    console.log('New game button clicked');
+    newGame();
   };
-  
-  // Также экспортируем startGame для совместимости
-  const startGame = useGameStore(state => state.startGame);
   
   if (gameOver) {
     return (
@@ -81,7 +66,7 @@ const KanbanGame = () => {
           <p className="text-gray-600 mb-4">Деньги закончились. Проект остановлен.</p>
           <p className="text-lg font-semibold mb-6">День: {day}</p>
           <button
-            onClick={newGame}
+            onClick={handleNewGame}
             className="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg"
           >
             Новая игра
@@ -109,7 +94,7 @@ const KanbanGame = () => {
             <p className="text-lg"><strong>Расходы:</strong> {formatCurrency(totalCosts)}</p>
           </div>
           <button
-            onClick={newGame}
+            onClick={handleNewGame}
             className="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg"
           >
             Новая игра
@@ -142,8 +127,6 @@ const KanbanGame = () => {
         
         {/* Capacity Panel */}
         <CapacityPanel capacity={capacity} />
-        
-        {/* Specialists Panel - для новой модели не нужен, но оставим для совместимости */}
         
         {/* Events Panel */}
         {events.length > 0 && <EventsPanel events={events} />}
