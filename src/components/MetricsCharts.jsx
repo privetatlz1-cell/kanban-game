@@ -16,10 +16,12 @@ import {
 import { COLUMNS, formatCurrency, formatNumber } from '../types.ts';
 
 const MetricsCharts = ({ history = [], tasks = [] }) => {
-  // Скрываем графики, если игра не началась (только день 0 и нет изменений)
-  const hasData = (history || []).length > 1 || ((history || []).length === 1 && (history[0]?.day || 0) > 0);
+  // Скрываем графики, если нет данных
+  const hasHistory = (history || []).length > 0;
+  const hasMultipleDays = (history || []).length > 1;
+  const hasData = hasHistory && (hasMultipleDays || ((history || []).length === 1 && (history[0]?.day || 0) > 0));
   
-  if (!hasData) {
+  if (!hasData || !hasHistory) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6" style={{ borderLeft: '4px solid #EC6428' }}>
         <p className="text-gray-500 text-center">Графики появятся после начала игры</p>

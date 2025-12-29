@@ -116,6 +116,7 @@ interface GameStore extends IGameState {
   unblockTask: (taskId: string, capacityType: 'rd' | 'hse', amount: number) => boolean;
   convertCapacity: (from: 'rd', to: 'lab', amount: number) => boolean; // 2 RD = 1 Lab
   newGame: () => void;
+  startGame: () => void; // Алиас для newGame
   clearHistory: () => void;
   totalRevenue: number; // Cumulative revenue
   totalCosts: number; // Cumulative costs
@@ -153,8 +154,11 @@ const createInitialState = () => {
 export const useGameStore = create<GameStore>()(
   persist(
     (set, get) => {
+      // Создаем начальное состояние
+      const initialState = createInitialState();
+      
       return {
-        ...createInitialState(),
+        ...initialState,
         
         // Next Day
         nextDay: () => {
@@ -545,7 +549,7 @@ export const useGameStore = create<GameStore>()(
           return true;
         },
         
-        // New Game
+        // New Game / Start Game
         newGame: () => {
           try {
             const newState = createInitialState();
@@ -555,10 +559,21 @@ export const useGameStore = create<GameStore>()(
             
             // Используем set с полным обновлением состояния
             set(newState);
+            
+            // Принудительно обновляем localStorage
+            setTimeout(() => {
+              const storage = createJSONStorage(() => localStorage);
+              storage.setItem('kanban-game-storage', JSON.stringify({ state: newState, version: 0 }));
+            }, 100);
           } catch (error) {
             console.error('Error in newGame:', error);
             alert('Ошибка при создании новой игры: ' + error.message);
           }
+        },
+        
+        // Start Game (алиас для newGame для совместимости)
+        startGame: () => {
+          get().newGame();
         },
         
         // Clear History
@@ -574,11 +589,17 @@ export const useGameStore = create<GameStore>()(
         if (error) {
           console.error('Error rehydrating store:', error);
           localStorage.removeItem('kanban-game-storage');
+          // Создаем начальное состояние при ошибке
+          setTimeout(() => {
+            useGameStore.setState(createInitialState());
+          }, 0);
           return;
         }
         if (state) {
           // Если состояние пустое или некорректное, инициализируем заново
-          if (!state.tasks || state.tasks.length === 0 || state.money === undefined || state.money === null || isNaN(state.money)) {
+          if (!state.tasks || state.tasks.length === 0 || 
+              state.money === undefined || state.money === null || 
+              isNaN(state.money) || state.money === 0) {
             const newState = createInitialState();
             // Используем setTimeout для обновления состояния после rehydration
             setTimeout(() => {

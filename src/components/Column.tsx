@@ -72,7 +72,9 @@ const Column = ({ columnId, tasks }: { columnId: string; tasks: any[] }) => {
         // Колонки без подколонок (backlog, acceptance, done, expedite)
         <div className="space-y-2 min-h-[100px]">
           {tasks.length === 0 ? (
-            <div className="text-xs text-gray-400 text-center py-4">Пусто</div>
+            <div className="text-xs text-gray-400 text-center py-4">
+              {columnId === 'backlog' ? 'Нет задач' : 'Пусто'}
+            </div>
           ) : (
             tasks.map(task => (
               <TaskCard key={task.id} task={task} />

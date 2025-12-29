@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStore } from './store.ts';
 import KanbanBoard from './components/KanbanBoard';
 import CapacityPanel from './components/CapacityPanel.tsx';
@@ -26,6 +26,23 @@ const KanbanGame = () => {
   } = useGameStore();
   
   const [showAutoDistribute, setShowAutoDistribute] = useState(false);
+  
+  // Проверяем и инициализируем игру при монтировании, если нужно
+  useEffect(() => {
+    // Даем время на rehydration из localStorage
+    const checkState = setTimeout(() => {
+      const currentState = useGameStore.getState();
+      // Если задач нет или бюджет равен 0, инициализируем игру
+      if ((!currentState.tasks || currentState.tasks.length === 0 || 
+           currentState.money === 0 || currentState.money === undefined) && 
+          !currentState.gameOver && !currentState.gameWon) {
+        console.log('Initializing game: tasks=', currentState.tasks?.length, 'money=', currentState.money);
+        currentState.newGame();
+      }
+    }, 200); // Даем время на rehydration
+    
+    return () => clearTimeout(checkState);
+  }, []); // Только при монтировании
   
   const handleNextDay = () => {
     nextDay();
