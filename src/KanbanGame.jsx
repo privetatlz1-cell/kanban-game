@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useGameStore } from './store';
+import { useGameStore } from './store/useGameStore';
 import KanbanBoard from './components/KanbanBoard';
 import CapacityPanel from './components/CapacityPanel';
 import EventsPanel from './components/EventsPanel';

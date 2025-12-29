@@ -13,7 +13,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { COLUMNS, formatCurrency, formatNumber } from '../types';
+import { COLUMNS, formatCurrency, formatNumber } from '../types.ts';
 
 const MetricsCharts = ({ history = [], tasks = [] }) => {
   // Скрываем графики, если нет данных
