@@ -6,6 +6,10 @@ import { useGameStore } from '../store.ts';
 const KanbanBoard = () => {
   const tasks = useGameStore(state => state.tasks);
   
+  // Логирование для отладки
+  console.log('KanbanBoard render - tasks count:', tasks.length);
+  console.log('Tasks in backlog:', tasks.filter(t => t.columnId === 'backlog').length);
+  
   // Отдельно показываем Expedite lane
   const expediteTasks = tasks.filter(t => t.columnId === 'expedite');
   const regularColumns = COLUMNS.filter(c => c.id !== 'expedite').sort((a, b) => a.order - b.order);

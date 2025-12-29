@@ -55,15 +55,23 @@ const KanbanGame = () => {
   };
   
   const handleNewGame = () => {
+    console.log('handleNewGame called, newGame type:', typeof newGame);
     if (typeof newGame === 'function') {
       try {
+        console.log('Calling newGame()...');
         newGame();
+        console.log('newGame() called successfully');
       } catch (error) {
         console.error('Error in newGame:', error);
         alert('Ошибка при создании новой игры: ' + error.message);
       }
+    } else {
+      console.error('newGame is not a function!');
     }
   };
+  
+  // Также экспортируем startGame для совместимости
+  const startGame = useGameStore(state => state.startGame);
   
   if (gameOver) {
     return (

@@ -552,7 +552,41 @@ export const useGameStore = create<GameStore>()(
         // New Game / Start Game
         newGame: () => {
           try {
-            const newState = createInitialState();
+            // Генерируем начальные задачи
+            const initialTasks = generateInitialTasks();
+            console.log('Generated tasks:', initialTasks.length);
+            
+            // Создаем новое состояние
+            const newState = {
+              tasks: initialTasks,
+              day: 0,
+              money: INITIAL_MONEY,
+              capacity: generateDailyCapacity(),
+              history: [
+                {
+                  day: 0,
+                  money: INITIAL_MONEY,
+                  revenue: 0,
+                  costs: 0,
+                  profit: 0,
+                  columnDistribution: COLUMNS.reduce((acc, col) => {
+                    acc[col.id] = initialTasks.filter(t => t.columnId === col.id).length;
+                    return acc;
+                  }, {} as Record<string, number>),
+                },
+              ],
+              events: [],
+              gameOver: false,
+              gameWon: false,
+              totalRevenue: 0,
+              totalCosts: 0,
+            };
+            
+            console.log('New game state:', {
+              tasks: newState.tasks.length,
+              money: newState.money,
+              backlogTasks: newState.tasks.filter(t => t.columnId === 'backlog').length
+            });
             
             // Очищаем localStorage перед установкой нового состояния
             localStorage.removeItem('kanban-game-storage');
@@ -562,8 +596,13 @@ export const useGameStore = create<GameStore>()(
             
             // Принудительно обновляем localStorage
             setTimeout(() => {
-              const storage = createJSONStorage(() => localStorage);
-              storage.setItem('kanban-game-storage', JSON.stringify({ state: newState, version: 0 }));
+              try {
+                const storage = createJSONStorage(() => localStorage);
+                storage.setItem('kanban-game-storage', JSON.stringify({ state: newState, version: 0 }));
+                console.log('State saved to localStorage');
+              } catch (e) {
+                console.error('Error saving to localStorage:', e);
+              }
             }, 100);
           } catch (error) {
             console.error('Error in newGame:', error);
